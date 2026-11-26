@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Drag-and-drop-spel där du pusslar ihop React-appar som använder localStorage och sessionStorage.">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Storage-pusslet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: kodeditor till vänster (själva pusslet), bitlåda + mål till höger; staplas på mobil med bitlådan klistrad nederst. */
+:root {
+  --bg: #e7ecf3;
+  --panel: #f7f9fc;
+  --ink: #172031;
+  --muted: #576377;
+  --line: #c9d2df;
+  --accent: #0b6e80;
+  --accent-ink: #ffffff;
+  --code-bg: #ffffff;
+  --code-ink: #1d2433;
+  --gutter-ink: #9aa5b6;
+  --syn-kw: #7b3fc4;
+  --syn-str: #2b7a3d;
+  --syn-tag: #1c62b9;
+  --syn-num: #c2510c;
+  --syn-punct: #6b7587;
+  --ok: #2b8a3e;
+  --ok-bg: #e3f4e6;
+  --bad: #c92a2a;
+  --bad-bg: #fde8e8;
+  --c-module: #6741d9;
+  --c-comp: #1971c2;
+  --c-jsx: #5c6b80;
+  --c-props: #d9480f;
+  --c-list: #2b8a3e;
+  --c-state: #c2255c;
+  --c-event: #b77400;
+  --c-cond: #0c8599;
+  --shadow: 0 1px 0 rgba(23,32,49,.06), 0 6px 18px -8px rgba(23,32,49,.25);
+  --f-display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
+  --f-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-code: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111722; --panel: #182130; --ink: #e6ebf3; --muted: #9aa6b9; --line: #2b3749;
+    --accent: #3fb6c9; --accent-ink: #0b1420; --code-bg: #0c111a; --code-ink: #d9e0eb; --gutter-ink: #4d5a6e;
+    --syn-kw: #c49bff; --syn-str: #8fd19e; --syn-tag: #7cb7ff; --syn-num: #ffa86b; --syn-punct: #8792a5;
+    --ok: #69db7c; --ok-bg: #16301f; --bad: #ff8787; --bad-bg: #3a1a1d;
+    --c-module: #a48bff; --c-comp: #5fa8f0; --c-jsx: #93a1b5; --c-props: #ff8f5a; --c-list: #69db7c;
+    --c-state: #f06595; --c-event: #ffc34d; --c-cond: #3fc8d9;
+    --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 20px -10px rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111722; --panel: #182130; --ink: #e6ebf3; --muted: #9aa6b9; --line: #2b3749;
+  --accent: #3fb6c9; --accent-ink: #0b1420; --code-bg: #0c111a; --code-ink: #d9e0eb; --gutter-ink: #4d5a6e;
+  --syn-kw: #c49bff; --syn-str: #8fd19e; --syn-tag: #7cb7ff; --syn-num: #ffa86b; --syn-punct: #8792a5;
+  --ok: #69db7c; --ok-bg: #16301f; --bad: #ff8787; --bad-bg: #3a1a1d;
+  --c-module: #a48bff; --c-comp: #5fa8f0; --c-jsx: #93a1b5; --c-props: #ff8f5a; --c-list: #69db7c;
+  --c-state: #f06595; --c-event: #ffc34d; --c-cond: #3fc8d9;
+  --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 20px -10px rgba(0,0,0,.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { max-width: 1200px; margin: 0 auto; padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; }
+.brand h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(28px, 4vw, 40px); line-height: 1; margin: 0; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+.brand h1 svg { width: 1em; height: 1em; flex: none; }
+.brand p { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+.course { font-family: var(--f-code); font-size: 12px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+
+.levels { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.lvl { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; text-align: left; min-width: 150px; }
+.lvl:hover { border-color: var(--accent); }
+.lvl[aria-current="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.lvl .n { font-family: var(--f-code); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+.lvl .t { font-weight: 700; font-size: 14px; }
+.lvl .s { font-size: 12px; letter-spacing: 1px; }
+
+.intro { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; }
+.intro h2 { font-family: var(--f-display); font-weight: 600; font-size: 22px; margin: 0; text-wrap: balance; }
+.intro .lesson { font-family: var(--f-code); font-size: 12px; color: var(--accent); }
+.intro p { margin: 0; color: var(--muted); flex-basis: 100%; max-width: 75ch; }
+
+.board { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 880px) { .board { grid-template-columns: minmax(0, 1fr); } }
+
+/* Editor */
+.editor { background: var(--code-bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); min-width: 0; }
+.tabs { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+.dots { display: flex; gap: 5px; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
+.file { font-family: var(--f-code); font-size: 13px; font-weight: 600; padding: 3px 10px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; }
+.pz-nav { margin-left: auto; display: flex; gap: 6px; }
+.pz-btn { font-family: var(--f-code); font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; cursor: pointer; color: var(--muted); }
+.pz-btn[aria-current="true"] { color: var(--ink); border-color: var(--ink); }
+.pz-btn.done::after { content: " ✓"; color: var(--ok); }
+.code-wrap { overflow-x: auto; }
+pre.code { margin: 0; padding: 14px 16px 18px 0; font-family: var(--f-code); font-size: 13.5px; line-height: 2.05; color: var(--code-ink); counter-reset: ln; min-width: max-content; }
+.ln { display: block; padding-left: 52px; position: relative; white-space: pre; }
+.ln::before { counter-increment: ln; content: counter(ln); position: absolute; left: 0; width: 36px; text-align: right; color: var(--gutter-ink); font-size: 12px; }
+.kw { color: var(--syn-kw); } .str { color: var(--syn-str); } .tag { color: var(--syn-tag); } .num { color: var(--syn-num); } .pun { color: var(--syn-punct); }
+
+.slot { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; min-width: 9ch; min-height: 26px; padding: 0 8px 0 3px; margin: 0 1px; border: 1.5px dashed var(--gutter-ink); border-radius: 6px; background: transparent; cursor: pointer; font-family: var(--f-code); font-size: 13px; line-height: 1.6; white-space: pre; transition: border-color .15s, background .15s; }
+.slot .no { font-size: 10px; font-weight: 600; min-width: 17px; height: 17px; border-radius: 4px; display: inline-grid; place-items: center; background: var(--line); color: var(--muted); }
+.slot .ph { color: var(--gutter-ink); }
+.slot.filled { border-style: solid; border-color: var(--cat, var(--line)); background: color-mix(in srgb, var(--cat, transparent) 10%, transparent); }
+.slot.filled .no { background: var(--cat); color: var(--code-bg); }
+.slot.hinted:not(.filled) { border-color: var(--cat); }
+.slot.hinted:not(.filled) .ph { color: var(--cat); }
+.slot.ok { border-color: var(--ok); background: var(--ok-bg); }
+.slot.ok .no { background: var(--ok); }
+.slot.bad { border-color: var(--bad); background: var(--bad-bg); animation: shake .35s; }
+.slot.bad .no { background: var(--bad); }
+.slot.over, .armed .slot:not(.ok):hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.armed .slot:not(.ok) { border-color: var(--accent); }
+@keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+/* Sidopanel */
+.side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.label { font-family: var(--f-code); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.goal { display: flex; gap: 14px; align-items: flex-start; padding: 16px 20px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border: 2px solid var(--accent); }
+.goal svg { width: 34px; height: 34px; flex: none; color: var(--accent); margin-top: 2px; }
+.goal .label { color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+#goal { margin: 0; font-family: var(--f-display); font-weight: 600; font-size: clamp(19px, 2.4vw, 24px); line-height: 1.25; text-wrap: balance; }
+.tray-card { position: relative; }
+.tray { display: flex; flex-wrap: wrap; gap: 8px; min-height: 48px; }
+.tray-empty { color: var(--muted); font-size: 13px; margin: 0; }
+.piece { --cat: var(--c-jsx); display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; max-width: 100%; padding: 6px 10px 7px; border-radius: 8px; border: 1px solid var(--line); border-left: 4px solid var(--cat); background: var(--code-bg); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; box-shadow: var(--shadow); text-align: left; }
+.piece:hover { border-color: var(--cat); }
+.piece code { font-family: var(--f-code); font-size: 12.5px; color: var(--code-ink); white-space: pre-wrap; word-break: break-word; }
+.piece .chip { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--cat); }
+.piece[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+.piece.dragging { opacity: .35; }
+.ghost { position: fixed; z-index: 50; pointer-events: none; transform: translate(-50%, -60%) rotate(-2deg); opacity: .95; }
+.tip { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; padding-left: 18px; display: grid; gap: 2px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { padding: 9px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font-weight: 600; }
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.link { border: none; background: none; text-decoration: underline; color: var(--muted); padding-inline: 4px; }
+.status { font-size: 14px; margin: 0; min-height: 1.5em; }
+.status.bad { color: var(--bad); } .status.ok { color: var(--ok); font-weight: 600; }
+
+.cat { --cat: var(--c-jsx); }
+.cat-module { --cat: var(--c-module); } .cat-comp { --cat: var(--c-comp); } .cat-jsx { --cat: var(--c-jsx); }
+.cat-props { --cat: var(--c-props); } .cat-list { --cat: var(--c-list); } .cat-state { --cat: var(--c-state); }
+.cat-event { --cat: var(--c-event); } .cat-cond { --cat: var(--c-cond); }
+.cat-ls { --cat: var(--c-comp); } .cat-ss { --cat: var(--c-cond); } .cat-json { --cat: var(--c-props); } .cat-effect { --cat: var(--c-module); } .cat-hook { --cat: var(--c-list); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--muted); }
+.legend li { display: flex; align-items: center; gap: 6px; }
+.legend li::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--cat); }
+
+/* Förklaringar */
+.explain { display: flex; flex-direction: column; gap: 10px; }
+.explain h3, .win h3 { font-family: var(--f-display); font-weight: 600; font-size: 18px; margin: 0; }
+.parts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.part { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.part .no { font-family: var(--f-code); font-size: 11px; font-weight: 600; width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center; background: var(--cat); color: var(--code-bg); }
+.part.bad .no { background: var(--bad); } .part.pending .no { background: var(--line); color: var(--muted); }
+.part .head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.part .head code { font-family: var(--f-code); font-size: 12.5px; word-break: break-word; }
+.part .kind { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--cat); }
+.part p { margin: 3px 0 0; font-size: 14px; color: var(--muted); max-width: 70ch; }
+.part.bad p { color: var(--bad); }
+
+.win { border: 2px solid var(--ok); background: var(--panel); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.win .stars { font-size: 22px; letter-spacing: 3px; color: var(--c-event); }
+.preview { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #ffffff; color: #1a1a1a; }
+.preview .bar { font-family: var(--f-code); font-size: 11px; padding: 5px 10px; background: #eef1f5; color: #5b6678; border-bottom: 1px solid #d9dee6; }
+.pv { padding: 14px; font-family: system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column; gap: 10px; }
+.pv h1, .pv h2 { margin: 0; } .pv h1 { font-size: 20px; } .pv h2 { font-size: 16px; } .pv p { margin: 0; }
+.pv header { background: #1f2a3c; color: #fff; padding: 10px 12px; border-radius: 6px; }
+.pv footer { font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 8px; }
+.pv .mcard { border: 1px solid #ccc; border-radius: 8px; padding: 10px 12px; }
+.pv button { align-self: flex-start; padding: 6px 12px; border-radius: 6px; border: 1px solid #888; background: #f2f2f2; color: #111; cursor: pointer; }
+.pv input { padding: 6px 8px; border: 1px solid #999; border-radius: 6px; font: inherit; color: #111; background: #fff; max-width: 260px; }
+.pv ul { margin: 0; padding-left: 20px; }
+.pv .row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.foot { color: var(--muted); font-size: 12.5px; }
+.reset { margin-left: 4px; }
+
+@media (max-width: 880px) {
+  .tray-card { position: sticky; bottom: 0; z-index: 5; max-height: 42vh; overflow: auto; padding-bottom: max(14px, env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 24px -14px rgba(0,0,0,.4); }
+}
+@media (prefers-reduced-motion: reduce) { .slot.bad { animation: none; } * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="course">Frontend 2 · WEBB26</div>
+      <h1><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="var(--accent)" d="M10 2a2.5 2.5 0 0 1 2.45 3H17a1 1 0 0 1 1 1v4.55A2.5 2.5 0 1 1 18 15.45V20a1 1 0 0 1-1 1h-4.55a2.5 2.5 0 1 0-4.9 0H3a1 1 0 0 1-1-1v-4.55a2.5 2.5 0 1 0 0-4.9V6a1 1 0 0 1 1-1h4.55A2.5 2.5 0 0 1 10 2Z"/></svg>Storage-pusslet</h1>
+      <p>Tre React-appar som glömmer allt när sidan laddas om. Dra in rätt kodbitar för localStorage och sessionStorage så att apparna kommer ihåg.</p>
+    </div>
+  </header>
+
+  <nav class="levels" id="levels" aria-label="Nivåer"></nav>
+
+  <section class="intro" id="intro"></section>
+
+  <div class="board">
+    <div class="side-main" style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div class="goal"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg><div><p class="label">Ditt uppdrag</p><p id="goal"></p></div></div>
+      <div class="editor" id="editor">
+        <div class="tabs">
+          <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+          <span class="file" id="file"></span>
+          <div class="pz-nav" id="pznav"></div>
+        </div>
+        <div class="code-wrap"><pre class="code" id="code"></pre></div>
+      </div>
+      <div id="win"></div>
+      <section class="explain" id="explain"></section>
+    </div>
+
+    <aside class="side">
+      <div class="card tray-card">
+        <p class="label">Kodbitar</p>
+        <div class="tray" id="tray"></div>
+        <ul class="tip"><li>Dra eller klicka på en kodbit för att placera den.</li><li>Klicka på en kodbit i koden för att ta bort den.</li></ul>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="check" type="button">Rätta koden</button>
+        <button class="btn" id="hint" type="button">Ledtråd</button>
+        <button class="btn link" id="reveal" type="button" hidden>Visa lösning</button>
+      </div>
+      <p class="status" id="status" role="status"></p>
+      <p class="foot">Stjärnor: rätt på första försöket utan ledtråd ger tre. <button class="btn link reset" id="resetAll" type="button">Nollställ framsteg</button></p>
+      <p class="foot">Kuriosa: spelet sparar dina stjärnor i localStorage under nyckeln <code>storage-pusslet-v1</code>. Öppna DevTools → Application och titta.</p>
+    </aside>
+  </div>
+</div>
+
+<script>
+const CATS = {
+  ls: "localStorage", ss: "sessionStorage", json: "JSON",
+  state: "State", effect: "useEffect", hook: "Eget hook"
+};
+
+/* Förhandsvisningarna använder riktig webbläsarlagring med egna demo-nycklar,
+   så eleven kan se att datan överlever en "omladdning". */
+const store = (type) => {
+  try { const s = window[type]; const t = "__pz"; s.setItem(t, t); s.removeItem(t); return s; } catch (e) { return null; }
+};
+const sget = (type, k) => { const s = store(type); try { return s ? s.getItem(k) : null; } catch (e) { return null; } };
+const sset = (type, k, v) => { const s = store(type); try { s && s.setItem(k, v); } catch (e) {} };
+const sdel = (type, k) => { const s = store(type); try { s && s.removeItem(k); } catch (e) {} };
+const pvEsc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const storageNote = (type) => store(type) ? "" : `<p style="color:#a33;font-size:12px">Webbläsaren blockerar ${type} här, så förhandsvisningen kan inte spara.</p>`;
+
+const LEVELS = [
+{
+  title: "Temaväxlaren", lesson: "localStorage · getItem & setItem",
+  intro: "localStorage sparar strängar som finns kvar när sidan laddas om. getItem läser ett värde och setItem sparar det. En sträng som \"dark\" kan sparas direkt, utan JSON.",
+  puzzles: [
+  {
+    file: "ThemeToggle.jsx",
+    goal: "Få temaväxlaren att komma ihåg valt tema när sidan laddas om.",
+    code: `import { useState, useEffect } from 'react';
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState(⟦a⟧ || "light");
+
+  useEffect(() => {
+    ⟦b⟧;
+  }, ⟦c⟧);
+
+  const toggle = () => {
+    setTheme(theme === "light" ? "dark" : "light");
+  };
+
+  return (
+    <div className={theme}>
+      <p>Aktivt tema: {theme}</p>
+      <button onClick={toggle}>Byt tema</button>
+    </div>
+  );
+}
+
+export default ThemeToggle;`,
+    slots: {
+      a: { piece: 'localStorage.getItem("theme")', cat: "ls", why: "getItem läser det sparade temat. Första besöket finns ingen nyckel och då ger getItem null, så || väljer \"light\" istället." },
+      b: { piece: 'localStorage.setItem("theme", theme)', cat: "ls", why: "setItem tar två argument: nyckeln och värdet. theme är redan en sträng och kan sparas direkt." },
+      c: { piece: "[theme]", cat: "effect", why: "Beroende-arrayen gör att effekten körs varje gång theme ändras, alltså varje gång användaren byter tema." }
+    },
+    wrong: [
+      { t: "localStorage.getItem(theme)", cat: "ls", why: "Utan citattecken är theme en variabel, och den finns inte ännu – det är just den vi håller på att skapa. Nyckeln är strängen \"theme\"." },
+      { t: "localStorage.setItem(theme)", cat: "ls", why: "setItem behöver både en nyckel och ett värde. Här saknas nyckeln, så det finns inget namn att läsa tillbaka med." },
+      { t: "[]", cat: "effect", why: "Med en tom beroende-array körs effekten bara en gång vid start. När användaren byter tema sparas det aldrig." },
+      { t: 'sessionStorage.getItem("theme")', cat: "ss", why: "sessionStorage töms när fliken stängs, och det är dessutom localStorage som setItem skriver till. Läs från samma lager som du sparar i." }
+    ],
+    preview: (el) => {
+      const K = "pusslet-demo-theme";
+      const draw = (reloaded) => {
+        const theme = sget("localStorage", K) || "light";
+        const dark = theme === "dark";
+        el.innerHTML = `${storageNote("localStorage")}
+          <div style="padding:16px;border-radius:8px;background:${dark ? "#1f2a3c" : "#f4f6fa"};color:${dark ? "#f2f4f8" : "#1a1a1a"};display:flex;flex-direction:column;gap:10px">
+            <p>Aktivt tema: <b>${theme}</b></p>
+            <button type="button" data-a="toggle">Byt tema</button>
+          </div>
+          <div class="row"><button type="button" data-a="reload">Simulera omladdning</button></div>
+          <p style="font-family:monospace;font-size:12px;color:#555">localStorage → theme = ${pvEsc(JSON.stringify(sget("localStorage", K)))}${reloaded ? " · sidan laddades om, temat lästes in igen" : ""}</p>`;
+        el.querySelector('[data-a="toggle"]').onclick = () => { sset("localStorage", K, dark ? "light" : "dark"); draw(false); };
+        el.querySelector('[data-a="reload"]').onclick = () => draw(true);
+      };
+      draw(false);
+    }
+  }]
+},
+{
+  title: "Inköpslistan", lesson: "localStorage · JSON & arrayer",
+  intro: "localStorage kan bara spara strängar. En array görs om till text med JSON.stringify när den sparas, och tillbaka till en array med JSON.parse när den läses.",
+  puzzles: [
+  {
+    file: "ShoppingList.jsx",
+    goal: "Spara inköpslistan så att varorna finns kvar efter en omladdning.",
+    code: `import { useState, useEffect } from 'react';
+
+function ShoppingList() {
+  const [items, setItems] = useState(
+    localStorage.getItem("items") ? ⟦a⟧ : ⟦b⟧
+  );
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem("items", ⟦c⟧);
+  }, [items]);
+
+  const addItem = () => {
+    ⟦d⟧;
+    setText("");
+  };
+
+  return (
+    <main>
+      <input value={text} onChange={(e) => setText(e.target.value)} />
+      <button onClick={addItem}>Lägg till</button>
+      <ul>
+        {items.map((item, i) => <li key={i}>{item}</li>)}
+      </ul>
+    </main>
+  );
+}
+
+export default ShoppingList;`,
+    slots: {
+      a: { piece: 'JSON.parse(localStorage.getItem("items"))', cat: "json", why: "Det som ligger sparat är en sträng, till exempel '[\"Mjölk\",\"Bröd\"]'. JSON.parse gör om den till en riktig array igen." },
+      b: { piece: "[]", cat: "state", why: "Första besöket finns ingen sparad lista. Då börjar vi med en tom array, så att items.map fungerar." },
+      c: { piece: "JSON.stringify(items)", cat: "json", why: "Arrayen görs om till JSON-text innan den sparas. Det är den texten som JSON.parse läser tillbaka vid nästa besök." },
+      d: { piece: "setItems([...items, text])", cat: "state", why: "Vi uppdaterar bara state, med en ny array. Effekten märker att items har ändrats och sparar själv – addItem behöver inte röra localStorage." }
+    },
+    wrong: [
+      { t: 'localStorage.getItem("items")', cat: "ls", why: "Utan JSON.parse blir items en sträng, inte en array. Strängar har ingen .map(), så appen kraschar." },
+      { t: '"[]"', cat: "state", why: "Det här är strängen \"[]\", inte en array. items.map kraschar eftersom en sträng inte har .map()." },
+      { t: "items", cat: "state", why: "En array som sparas direkt blir texten Mjölk,Bröd – utan hakparenteser och citattecken. JSON.parse kan inte läsa tillbaka det." },
+      { t: 'localStorage.setItem("items", text)', cat: "ls", why: "Det här skriver till lagringen men ändrar inte state, så listan på sidan uppdateras inte. Kom ihåg: localStorage är inte state." },
+      { t: "items.push(text)", cat: "state", why: "push ändrar den gamla arrayen direkt. React ser ingen ny array, så varken listan eller effekten körs igen." }
+    ],
+    preview: (el) => {
+      const K = "pusslet-demo-items";
+      const read = () => { try { return JSON.parse(sget("localStorage", K)) || []; } catch (e) { return []; } };
+      const draw = (reloaded) => {
+        const items = read();
+        el.innerHTML = `${storageNote("localStorage")}
+          <div class="row"><input aria-label="Vara" placeholder="t.ex. Mjölk"><button type="button" data-a="add">Lägg till</button></div>
+          <ul>${items.map(i => `<li>${pvEsc(i)}</li>`).join("") || '<li style="list-style:none;margin-left:-20px;color:#777">Listan är tom</li>'}</ul>
+          <div class="row"><button type="button" data-a="reload">Simulera omladdning</button><button type="button" data-a="clear">Töm listan</button></div>
+          <p style="font-family:monospace;font-size:12px;color:#555;word-break:break-all">localStorage → items = ${pvEsc(JSON.stringify(sget("localStorage", K)))}${reloaded ? " · sidan laddades om, listan lästes in igen" : ""}</p>`;
+        const input = el.querySelector("input");
+        const add = () => { if (!input.value.trim()) return; sset("localStorage", K, JSON.stringify([...items, input.value.trim()])); draw(false); el.querySelector("input").focus(); };
+        el.querySelector('[data-a="add"]').onclick = add;
+        input.onkeydown = (e) => { if (e.key === "Enter") add(); };
+        el.querySelector('[data-a="reload"]').onclick = () => draw(true);
+        el.querySelector('[data-a="clear"]').onclick = () => { sset("localStorage", K, "[]"); draw(false); };
+      };
+      draw(false);
+    }
+  }]
+},
+{
+  title: "Anmälningsformuläret", lesson: "sessionStorage · eget hook",
+  intro: "sessionStorage har samma API som localStorage, men töms när fliken stängs. Det passar för utkast i formulär. Här samlas logiken i ett eget hook som fungerar för vilken nyckel som helst.",
+  puzzles: [
+  {
+    file: "SignupForm.jsx",
+    goal: "Bygg hooken useSessionStorage och använd den så att formulärets utkast överlever en omladdning.",
+    code: `import { useState, useEffect } from 'react';
+
+function useSessionStorage(key, initialValue) {
+  const [value, setValue] = useState(
+    ⟦a⟧ ? JSON.parse(sessionStorage.getItem(key)) : initialValue
+  );
+
+  useEffect(() => {
+    ⟦b⟧;
+  }, [key, value]);
+
+  return ⟦c⟧;
+}
+
+function SignupForm() {
+  const [name, setName] = ⟦d⟧;
+  const [email, setEmail] = useSessionStorage("email", "");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setName("");
+    setEmail("");
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={name} onChange={(e) => setName(e.target.value)} />
+      <input value={email} onChange={(e) => setEmail(e.target.value)} />
+      <button>Skicka anmälan</button>
+    </form>
+  );
+}
+
+export default SignupForm;`,
+    slots: {
+      a: { piece: "sessionStorage.getItem(key)", cat: "ss", why: "Utkastet läses från sessionStorage. key skrivs utan citattecken eftersom det är en variabel – hooken ska fungera för både \"name\" och \"email\"." },
+      b: { piece: "sessionStorage.setItem(key, JSON.stringify(value))", cat: "ss", why: "Värdet sparas som JSON under rätt nyckel. JSON gör att hooken klarar både strängar, tal och arrayer." },
+      c: { piece: "[value, setValue]", cat: "hook", why: "Hooken returnerar samma par som useState. Därför kan den destructureras med [name, setName] precis som vanlig state." },
+      d: { piece: 'useSessionStorage("name", "")', cat: "hook", why: "Här används hooken med nyckeln \"name\" och en tom sträng som startvärde. Resten av komponenten märker ingen skillnad mot useState." }
+    },
+    wrong: [
+      { t: 'sessionStorage.getItem("key")', cat: "ss", why: "Med citattecken letar den efter en nyckel som bokstavligen heter \"key\". Använd variabeln key, så blir det \"name\" eller \"email\"." },
+      { t: "localStorage.setItem(key, JSON.stringify(value))", cat: "ls", why: "Då sparas utkastet i localStorage, men hooken läser från sessionStorage. Ett utkast ska dessutom försvinna när fliken stängs." },
+      { t: "sessionStorage.setItem(key, value)", cat: "ss", why: "Utan JSON.stringify sparas texten Ada utan citattecken. När den läses tillbaka kraschar JSON.parse, eftersom Ada inte är giltig JSON." },
+      { t: "{ value, setValue }", cat: "hook", why: "Ett objekt går inte att destructurera med hakparenteser, som [name, setName] gör. Returnera en array, precis som useState." },
+      { t: 'useState("")', cat: "state", why: "Fältet fungerar, men namnet sparas aldrig. Det är hooken som kopplar ihop state med sessionStorage." }
+    ],
+    preview: (el) => {
+      const KN = "pusslet-demo-name", KE = "pusslet-demo-email";
+      const read = (k) => { try { return JSON.parse(sget("sessionStorage", k)) ?? ""; } catch (e) { return ""; } };
+      const draw = (msg) => {
+        el.innerHTML = `${storageNote("sessionStorage")}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <input aria-label="Namn" placeholder="Namn" data-k="${KN}" value="${pvEsc(read(KN))}">
+            <input aria-label="E-post" placeholder="E-post" data-k="${KE}" value="${pvEsc(read(KE))}">
+            <button type="button" data-a="send">Skicka anmälan</button>
+          </div>
+          <div class="row"><button type="button" data-a="reload">Simulera omladdning</button><button type="button" data-a="tab">Simulera ny flik</button></div>
+          <p style="font-family:monospace;font-size:12px;color:#555;word-break:break-all">sessionStorage → name = ${pvEsc(JSON.stringify(sget("sessionStorage", KN)))}, email = ${pvEsc(JSON.stringify(sget("sessionStorage", KE)))}${msg ? " · " + msg : ""}</p>`;
+        el.querySelectorAll("input").forEach(i => { i.oninput = () => { sset("sessionStorage", i.dataset.k, JSON.stringify(i.value)); el.querySelector("p:last-child").textContent = `sessionStorage → name = ${JSON.stringify(sget("sessionStorage", KN))}, email = ${JSON.stringify(sget("sessionStorage", KE))}`; }; });
+        el.querySelector('[data-a="send"]').onclick = () => { sset("sessionStorage", KN, '""'); sset("sessionStorage", KE, '""'); draw("anmälan skickad, utkastet tömdes"); };
+        el.querySelector('[data-a="reload"]').onclick = () => draw("sidan laddades om, utkastet finns kvar");
+        el.querySelector('[data-a="tab"]').onclick = () => { sdel("sessionStorage", KN); sdel("sessionStorage", KE); draw("ny flik – sessionStorage är tom"); };
+      };
+      draw("");
+    }
+  }]
+}
+];
+
+/* ---------- state ---------- */
+const KEY = "storage-pusslet-v1";
+let progress = {};
+try { progress = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { progress = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(progress)); } catch (e) {} };
+
+let cur = { L: 0, P: 0 };
+let S = null; // aktivt pussels spelläge
+let selected = null; // index på vald bit
+
+function pid(L, P) { return L + "-" + P; }
+function seeded(str) { let h = 2166136261; for (const c of str) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; }
+
+function loadPuzzle(L, P) {
+  cur = { L, P };
+  const pz = LEVELS[L].puzzles[P];
+  const order = [...pz.code.matchAll(/⟦(\w+)⟧/g)].map(m => m[1]);
+  let pieces = order.map(k => ({ t: pz.slots[k].piece, cat: pz.slots[k].cat, correct: true }))
+    .concat(pz.wrong.map(w => ({ t: w.t, cat: w.cat, why: w.why, correct: false })));
+  const rnd = seeded(pz.file + L + P);
+  for (let i = pieces.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pieces[i], pieces[j]] = [pieces[j], pieces[i]]; }
+  S = { pz, order, pieces, place: {}, result: {}, checks: 0, hint: false, solved: false, revealed: false, fails: 0 };
+  selected = null;
+  renderAll();
+}
+
+/* ---------- syntaxfärgning ---------- */
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function hl(src) {
+  const re = /("[^"\n]*"|'[^'\n]*')|(=>|===|\.\.\.)|(<\/>|<>|<\/?[A-Za-z][\w.]*|\/>)|\b(import|from|export|default|function|return|const|let|true|false|if|null)\b|(\b\d+\b)/g;
+  let out = "", last = 0, m;
+  while ((m = re.exec(src))) {
+    out += esc(src.slice(last, m.index));
+    const cls = m[1] ? "str" : m[2] ? "pun" : m[3] ? "tag" : m[4] ? "kw" : "num";
+    out += `<span class="${cls}">${esc(m[0])}</span>`;
+    last = re.lastIndex;
+  }
+  return out + esc(src.slice(last));
+}
+
+/* ---------- rendering ---------- */
+const $ = id => document.getElementById(id);
+function stars(n) { return "★".repeat(n) + "☆".repeat(3 - n); }
+
+function renderLevels() {
+  $("levels").innerHTML = LEVELS.map((lv, i) => {
+    const got = lv.puzzles.reduce((a, _, j) => a + ((progress[pid(i, j)] || {}).stars || 0), 0);
+    const max = lv.puzzles.length * 3;
+    return `<button class="lvl" type="button" data-l="${i}" aria-current="${i === cur.L}">
+      <span class="n">Nivå ${i + 1}</span><span class="t">${esc(lv.title)}</span>
+      <span class="s" aria-label="${got} av ${max} stjärnor">${"★".repeat(Math.round(got / lv.puzzles.length))}${"☆".repeat(3 - Math.round(got / lv.puzzles.length))}</span></button>`;
+  }).join("");
+}
+
+function renderIntro() {
+  const lv = LEVELS[cur.L];
+  $("intro").innerHTML = `<h2>${esc(lv.title)}</h2><span class="lesson">${esc(lv.lesson)}</span><p>${esc(lv.intro)}</p>`;
+  $("pznav").innerHTML = lv.puzzles.length > 1 ? lv.puzzles.map((p, j) =>
+    `<button class="pz-btn ${(progress[pid(cur.L, j)] || {}).stars !== undefined ? "done" : ""}" type="button" data-p="${j}" aria-current="${j === cur.P}">Pussel ${j + 1}</button>`).join("") : "";
+}
+
+function slotHTML(k, no) {
+  const slot = S.pz.slots[k];
+  const idx = S.place[k];
+  const res = S.result[k] || "";
+  const filled = idx !== undefined;
+  const cat = filled ? S.pieces[idx].cat : slot.cat;
+  const classes = ["slot", "cat-" + cat, filled ? "filled" : "", S.hint ? "hinted" : "", res].join(" ");
+  const body = filled ? hl(S.pieces[idx].t) : `<span class="ph">${S.hint ? CATS[slot.cat] : "      "}</span>`;
+  const label = `Lucka ${no}${filled ? ": " + S.pieces[idx].t : ", tom"}`;
+  return `<button type="button" class="${classes}" data-slot="${k}" aria-label="${esc(label)}"><span class="no">${no}</span><span>${body}</span></button>`;
+}
+
+function renderCode() {
+  $("file").textContent = S.pz.file;
+  const parts = S.pz.code.split(/⟦(\w+)⟧/);
+  let html = "";
+  parts.forEach((p, i) => { html += i % 2 ? slotHTML(p, S.order.indexOf(p) + 1) : hl(p); });
+  $("code").innerHTML = html.split("\n").map(l => `<span class="ln">${l || " "}</span>`).join("");
+  $("editor").classList.toggle("armed", selected !== null);
+}
+
+function renderTray() {
+  const used = new Set(Object.values(S.place));
+  const free = S.pieces.map((p, i) => ({ p, i })).filter(x => !used.has(x.i));
+  $("tray").innerHTML = free.length ? free.map(({ p, i }) =>
+    `<button type="button" class="piece cat-${p.cat}" data-idx="${i}" aria-pressed="${selected === i}"><span class="chip">${CATS[p.cat]}</span><code>${hl(p.t)}</code></button>`).join("")
+    : `<p class="tray-empty">Alla bitar är utlagda. De som blev över hör inte hemma i koden.</p>`;
+}
+
+function renderExplain() {
+  if (!S.checks && !S.solved) { $("explain").innerHTML = ""; return; }
+  const items = S.order.map((k, n) => {
+    const slot = S.pz.slots[k], idx = S.place[k], res = S.result[k];
+    if (S.solved || res === "ok") {
+      return `<li class="part cat-${slot.cat}"><span class="no">${n + 1}</span><div><div class="head"><span class="kind">${CATS[slot.cat]}</span><code>${hl(slot.piece)}</code></div><p>${esc(slot.why)}</p></div></li>`;
+    }
+    if (res === "bad" && idx !== undefined) {
+      const pc = S.pieces[idx];
+      const why = pc.correct ? "Den här biten är rätt, men den hör hemma i en annan lucka." : pc.why;
+      return `<li class="part bad cat-${pc.cat}"><span class="no">${n + 1}</span><div><div class="head"><span class="kind">Fel bit</span><code>${hl(pc.t)}</code></div><p>${esc(why)}</p></div></li>`;
+    }
+    return `<li class="part pending"><span class="no">${n + 1}</span><div><div class="head"><span class="kind" style="color:var(--muted)">Tom lucka</span></div><p>Fyll i luckan och rätta igen.</p></div></li>`;
+  }).join("");
+  $("explain").innerHTML = `<h3>${S.solved ? "Så hänger koden ihop" : "Kodens delar"}</h3><ol class="parts">${items}</ol>`;
+}
+
+function renderWin() {
+  const w = $("win");
+  if (!S.solved) { w.innerHTML = ""; return; }
+  const st = (progress[pid(cur.L, cur.P)] || {}).stars || 0;
+  const lv = LEVELS[cur.L];
+  const last = cur.L === LEVELS.length - 1 && cur.P === lv.puzzles.length - 1;
+  const nextLabel = cur.P < lv.puzzles.length - 1 ? "Nästa pussel" : last ? "Börja om från nivå 1" : "Nästa nivå";
+  w.innerHTML = `<div class="win">
+    <div style="display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between">
+      <h3>${S.revealed ? "Här är lösningen" : "Rätt! Det här är giltig React-kod."}</h3>
+      <span class="stars" aria-label="${st} av 3 stjärnor">${stars(st)}</span>
+    </div>
+    <div class="preview"><div class="bar">localhost:5173 · ${esc(S.pz.file)} renderad</div><div class="pv" id="pv"></div></div>
+    <div><button class="btn primary" id="next" type="button">${nextLabel}</button></div>
+  </div>`;
+  const pv = $("pv"), out = S.pz.preview(pv);
+  if (typeof out === "string") pv.innerHTML = out;
+  $("next").onclick = () => {
+    if (cur.P < lv.puzzles.length - 1) loadPuzzle(cur.L, cur.P + 1);
+    else loadPuzzle(last ? 0 : cur.L + 1, 0);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+}
+
+function renderSide() {
+  $("goal").textContent = S.pz.goal;
+  $("check").disabled = S.solved;
+  $("hint").disabled = S.solved || S.hint;
+  $("reveal").hidden = S.solved || S.fails < 3;
+}
+
+function renderLegend() {
+  $("legend").innerHTML = Object.entries(CATS).map(([k, v]) => `<li class="cat-${k}">${v}</li>`).join("");
+}
+
+function renderAll() { renderLevels(); renderIntro(); renderCode(); renderTray(); renderExplain(); renderWin(); renderSide(); }
+
+function setStatus(msg, cls) { const s = $("status"); s.textContent = msg; s.className = "status " + (cls || ""); }
+
+/* ---------- logik ---------- */
+function place(idx, k) {
+  if (S.solved || S.result[k] === "ok") return;
+  const from = Object.keys(S.place).find(s => S.place[s] === idx);
+  const prev = S.place[k];
+  if (from) { delete S.place[from]; delete S.result[from]; }
+  if (prev !== undefined && from) S.place[from] = prev;
+  S.place[k] = idx;
+  delete S.result[k];
+  selected = null;
+  setStatus("");
+  renderCode(); renderTray();
+}
+function unplace(k) {
+  if (S.solved || S.result[k] === "ok") return;
+  delete S.place[k]; delete S.result[k];
+  renderCode(); renderTray();
+}
+
+function check() {
+  if (S.solved) return;
+  S.checks++;
+  let ok = 0, empty = 0;
+  S.order.forEach(k => {
+    const idx = S.place[k];
+    if (idx === undefined) { empty++; delete S.result[k]; return; }
+    const slot = S.pz.slots[k];
+    const good = (slot.accept || [slot.piece]).includes(S.pieces[idx].t);
+    S.result[k] = good ? "ok" : "bad";
+    if (good) ok++;
+  });
+  const total = S.order.length;
+  if (ok === total) {
+    S.solved = true;
+    const st = Math.max(1, 3 - (S.checks > 1 ? 1 : 0) - (S.hint ? 1 : 0));
+    const key = pid(cur.L, cur.P);
+    progress[key] = { stars: Math.max(st, (progress[key] || {}).stars || 0) };
+    save();
+    setStatus("Alla luckor är rätt.", "ok");
+  } else {
+    S.fails++;
+    const bad = total - ok - empty;
+    const bits = [];
+    if (ok) bits.push(`${ok} rätt`);
+    if (bad) bits.push(`${bad} fel`);
+    if (empty) bits.push(`${empty} tomma`);
+    setStatus(`${bits.join(", ")} av ${total}. Läs förklaringarna under koden och försök igen.`, "bad");
+  }
+  renderAll();
+}
+
+function reveal() {
+  S.order.forEach(k => {
+    const slot = S.pz.slots[k];
+    const idx = S.pieces.findIndex((p, i) => p.t === slot.piece);
+    S.place[k] = idx; S.result[k] = "ok";
+  });
+  S.solved = true; S.revealed = true;
+  const key = pid(cur.L, cur.P);
+  if (!progress[key]) { progress[key] = { stars: 0 }; save(); }
+  setStatus("Lösningen visas. Läs igenom förklaringarna och prova nästa pussel.", "");
+  renderAll();
+}
+
+/* ---------- interaktion ---------- */
+$("levels").addEventListener("click", e => { const b = e.target.closest(".lvl"); if (b) loadPuzzle(+b.dataset.l, 0); });
+$("pznav").addEventListener("click", e => { const b = e.target.closest(".pz-btn"); if (b) loadPuzzle(cur.L, +b.dataset.p); });
+$("check").onclick = check;
+$("hint").onclick = () => { S.hint = true; setStatus("Luckorna visar nu vilken sorts kod som ska in. Ledtråden kostar en stjärna.", ""); renderCode(); renderSide(); };
+$("reveal").onclick = reveal;
+$("resetAll").onclick = () => { progress = {}; save(); loadPuzzle(0, 0); };
+
+let suppressClick = false;
+$("tray").addEventListener("click", e => {
+  if (suppressClick) return;
+  const p = e.target.closest(".piece"); if (!p) return;
+  const i = +p.dataset.idx;
+  selected = selected === i ? null : i;
+  renderTray(); renderCode();
+});
+$("code").addEventListener("click", e => {
+  if (suppressClick) return;
+  const s = e.target.closest(".slot"); if (!s) return;
+  const k = s.dataset.slot;
+  if (selected !== null) place(selected, k);
+  else if (S.place[k] !== undefined) unplace(k);
+});
+
+/* Drag med pekare (mus + touch) */
+let drag = null;
+function startDrag(e, idx) {
+  drag = { idx, x: e.clientX, y: e.clientY, moved: false, ghost: null, src: e.target.closest(".piece, .slot") };
+}
+$("tray").addEventListener("pointerdown", e => {
+  const p = e.target.closest(".piece"); if (!p || e.button > 0) return;
+  startDrag(e, +p.dataset.idx);
+});
+$("code").addEventListener("pointerdown", e => {
+  const s = e.target.closest(".slot.filled"); if (!s || e.button > 0 || s.classList.contains("ok") || S.solved) return;
+  startDrag(e, S.place[s.dataset.slot]);
+});
+window.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (!drag.moved) {
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+    drag.moved = true;
+    const pc = S.pieces[drag.idx];
+    const g = document.createElement("div");
+    g.className = "piece ghost cat-" + pc.cat;
+    g.innerHTML = `<span class="chip">${CATS[pc.cat]}</span><code>${hl(pc.t)}</code>`;
+    document.body.appendChild(g);
+    drag.ghost = g;
+    drag.src && drag.src.classList.add("dragging");
+  }
+  drag.ghost.style.left = e.clientX + "px";
+  drag.ghost.style.top = e.clientY + "px";
+  document.querySelectorAll(".slot.over").forEach(s => s.classList.remove("over"));
+  const t = document.elementFromPoint(e.clientX, e.clientY);
+  const s = t && t.closest(".slot");
+  if (s && !s.classList.contains("ok")) s.classList.add("over");
+});
+function endDrag(e) {
+  if (!drag) return;
+  if (drag.moved) {
+    drag.ghost.remove();
+    suppressClick = true; setTimeout(() => suppressClick = false, 50);
+    const t = document.elementFromPoint(e.clientX, e.clientY);
+    const s = t && t.closest(".slot");
+    const fromSlot = Object.keys(S.place).find(k => S.place[k] === drag.idx);
+    if (s) place(drag.idx, s.dataset.slot);
+    else if (fromSlot) unplace(fromSlot);
+    else { renderTray(); renderCode(); }
+  }
+  drag = null;
+}
+window.addEventListener("pointerup", endDrag);
+window.addEventListener("pointercancel", e => { if (drag && drag.ghost) drag.ghost.remove(); drag = null; renderTray(); renderCode(); });
+
+loadPuzzle(0, 0);
+</script>
+
+</body>
+</html>
